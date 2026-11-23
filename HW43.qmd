@@ -1,0 +1,791 @@
+
+---
+title: "STAT 184 - Reproducible Data Analysis"
+author: "Sid Rojinedar"
+date: "2026-11-20"
+format:
+  pdf:
+    toc: true
+    number-sections: true
+    geometry: margin=0.8in
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+# Diamonds Table of Statistics
+
+This section examines the length, width, and height of diamonds. The tables compare the measurements across clarity groups. Diamonds with zero measurements are removed because these values do not represent valid physical dimensions.
+
+```{r}
+# Load packages and the diamonds dataset
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+
+data(diamonds)
+
+# Remove diamonds with zero dimensions
+diamonds <- diamonds %>%
+  filter(x > 0, y > 0, z > 0)
+```
+
+## Diamond Width
+
+```{r}
+#| label: tbl-width
+#| tbl-cap: "Diamond Width Statistics by Clarity"
+
+# Calculate width statistics by clarity
+width_results <- diamonds %>%
+  group_by(clarity) %>%
+  summarize(
+    Count = n(),
+    `0%` = min(y),
+    `20%` = quantile(y, 0.20),
+    `40%` = quantile(y, 0.40),
+    `60%` = quantile(y, 0.60),
+    `80%` = quantile(y, 0.80),
+    `100%` = max(y),
+    Median = median(y),
+    Mean = mean(y),
+    SD = sd(y)
+  )
+
+# Display the table
+kable(width_results, digits = 2,
+      booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
+```
+
+Table @tbl-width compares diamond widths across clarity groups. The `r as.character(width_results$clarity[which.max(width_results$Mean)])` group has the highest average width. The standard deviations and percentile ranges show that diamond widths also vary within each clarity group. This means that clarity alone does not determine a diamond's width.
+
+## Diamond Length
+
+```{r}
+#| label: tbl-length
+#| tbl-cap: "Diamond Length Statistics by Clarity"
+
+# Calculate length statistics by clarity
+length_results <- diamonds %>%
+  group_by(clarity) %>%
+  summarize(
+    Count = n(),
+    `0%` = min(x),
+    `20%` = quantile(x, 0.20),
+    `40%` = quantile(x, 0.40),
+    `60%` = quantile(x, 0.60),
+    `80%` = quantile(x, 0.80),
+    `100%` = max(x),
+    Median = median(x),
+    Mean = mean(x),
+    SD = sd(x)
+  )
+
+# Display the table
+kable(length_results, digits = 2,
+      booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
+```
+
+Table @tbl-length shows diamond lengths across different clarity groups. The group with the highest average length is `r as.character(length_results$clarity[which.max(length_results$Mean)])`. Comparing the mean and median helps show typical diamond lengths, while the percentile values show how much the measurements differ. The results suggest that diamonds in the same clarity category can still have different sizes.
+
+## Diamond Height
+
+```{r}
+#| label: tbl-height
+#| tbl-cap: "Diamond Height Statistics by Clarity"
+
+# Calculate height statistics by clarity
+height_results <- diamonds %>%
+  group_by(clarity) %>%
+  summarize(
+    Count = n(),
+    `0%` = min(z),
+    `20%` = quantile(z, 0.20),
+    `40%` = quantile(z, 0.40),
+    `60%` = quantile(z, 0.60),
+    `80%` = quantile(z, 0.80),
+    `100%` = max(z),
+    Median = median(z),
+    Mean = mean(z),
+    SD = sd(z)
+  )
+
+# Display the table
+kable(height_results, digits = 2,
+      booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
+```
+
+Table @tbl-height compares diamond heights across clarity groups. The group with the highest average height is `r as.character(height_results$clarity[which.max(height_results$Mean)])`. Diamond heights are generally smaller than their lengths and widths. The variation within groups shows that diamonds with the same clarity can have different physical measurements.
+
+# Big 10 Academic Alliance - Love Data Week
+
+This section examines how three-point shooting relates to winning games in NCAA women's basketball during the 2025–2026 season. A boxplot is used to compare shooting percentages between winning and losing teams.
+
+## Three-Point Shooting and Game Results
+
+```{r}
+# Load the basketball data
+basketball <- read_csv("team_box.csv")
+
+# Keep the 2026 season and necessary columns
+basketball <- basketball %>%
+  filter(season == 2026) %>%
+  select(game_id, team_display_name,
+         team_winner, three_point_field_goal_pct)
+
+# Remove missing values
+basketball <- basketball %>%
+  filter(!is.na(three_point_field_goal_pct))
+
+# Create a variable for winning and losing
+basketball <- basketball %>%
+  mutate(
+    Result = ifelse(team_winner, "Win", "Loss")
+  )
+```
+
+```{r}
+#| label: fig-basketball
+#| fig-cap: "Three-Point Shooting Percentage by Game Result"
+#| fig-alt: "Boxplots comparing three-point shooting percentages for winning and losing NCAA women's basketball teams."
+#| fig-width: 7
+#| fig-height: 5
+
+# Create the boxplot
+ggplot(basketball,
+       aes(x = Result,
+           y = three_point_field_goal_pct)) +
+  geom_boxplot(fill = "skyblue", color = "blue") +
+  labs(
+    title = "Three-Point Shooting in Women's College Basketball",
+    subtitle = "Winning vs. Losing Teams (2025–2026)",
+    x = "Game Result",
+    y = "Three-Point Shooting Percentage"
+  ) +
+  theme_minimal()
+```
+
+Figure @fig-basketball shows that winning teams generally have higher three-point shooting percentages than losing teams. Winning teams had a median three-point shooting percentage of 33%, compared to 26% for losing teams. This suggests that accurate three-point shooting is an important part of team success.
+
+However, the overlapping boxes show that teams can still win games with lower shooting percentages. Other factors, such as defense, rebounding, and turnovers, also contribute to winning. Overall, the graph shows a connection between three-point shooting accuracy and game results.
+
+# Monte Carlo Numerical Integration
+
+Monte Carlo integration is a method for estimating the area under a curve using randomly generated points. Points are generated inside a rectangle, and the proportion below the function is used to estimate the integral.
+
+This section uses the standard normal distribution from -4 to 4. Four simulations are compared using 10, 100, 1,000, and 10,000 points.
+
+## Simulation Setup
+
+```{r}
+# Make the random results reproducible
+set.seed(184)
+
+# Function for generating random coordinates
+generate_points <- function(n, xmin, xmax, ymin, ymax) {
+
+  x <- runif(n, xmin, xmax)
+  y <- runif(n, ymin, ymax)
+
+  return(data.frame(x, y))
+}
+
+# Function to create a Monte Carlo graph
+make_plot <- function(n) {
+
+  # Generate random coordinates
+  points <- generate_points(n, -4, 4, 0, 0.4)
+
+  # Identify points above or below the curve
+  points$Position <- ifelse(
+    points$y <= dnorm(points$x),
+    "Below", "Above"
+  )
+
+  # Calculate the estimated integral
+  estimate <- mean(
+    points$Position == "Below"
+  ) * 8 * 0.4
+
+  # Create the graph
+  ggplot(points,
+         aes(x = x, y = y, color = Position)) +
+    geom_point(size = 0.7, alpha = 0.5) +
+    stat_function(
+      fun = dnorm,
+      args = list(mean = 0, sd = 1),
+      xlim = c(-4, 4)
+    ) +
+    labs(
+      title = paste("n =", n,
+                    "Estimate =", round(estimate, 4)),
+      x = "x",
+      y = "y"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+}
+```
+
+## Monte Carlo Small Multiple
+
+::: {#fig-montecarlo layout-ncol=2}
+
+```{r}
+#| label: fig-mc10
+#| fig-cap: "Simulation with 10 points"
+#| fig-alt: "Monte Carlo simulation with 10 randomly generated points."
+#| fig-width: 5
+#| fig-height: 3.5
+
+make_plot(10)
+```
+
+```{r}
+#| label: fig-mc100
+#| fig-cap: "Simulation with 100 points"
+#| fig-alt: "Monte Carlo simulation with 100 randomly generated points."
+#| fig-width: 5
+#| fig-height: 3.5
+
+make_plot(100)
+```
+
+```{r}
+#| label: fig-mc1000
+#| fig-cap: "Simulation with 1,000 points"
+#| fig-alt: "Monte Carlo simulation with 1,000 randomly generated points."
+#| fig-width: 5
+#| fig-height: 3.5
+
+make_plot(1000)
+```
+
+```{r}
+#| label: fig-mc10000
+#| fig-cap: "Simulation with 10,000 points"
+#| fig-alt: "Monte Carlo simulation with 10,000 randomly generated points."
+#| fig-width: 5
+#| fig-height: 3.5
+
+make_plot(10000)
+```
+
+Monte Carlo simulations of the standard normal distribution at four different sample sizes.
+
+:::
+
+Figure @fig-montecarlo compares Monte Carlo integration using different numbers of random points. The smallest simulation has only 10 points, so its estimate can be affected heavily by randomness. As the number of points increases, the estimates generally become more stable.
+
+The exact area under the standard normal curve between -4 and 4 is approximately 0.99994, which is very close to 1. The larger simulations should produce estimates closer to this value. The four plots help show why increasing the sample size generally improves the accuracy of Monte Carlo integration.
+
+# Planning and Prompting GenAI Tools
+
+This section compares two approaches to using ChatGPT for data visualization. One approach uses a detailed plan, while the other uses a generic prompt.
+
+The dataset contains calcium measurements from 31 women. Fifteen received no treatment, while sixteen participated in a diet and exercise program. Measurements were taken initially and at three later time points.
+
+## Data Analysis Plan
+
+**Goal:** Compare calcium levels over time between women who received no treatment and women who received diet and exercise treatment.
+
+**Nouns:** Calcium dataset, women, treatment groups, calcium levels, years, measurements, data frame, line graph, averages, ggplot2.
+
+**Verbs:** Load, clean, organize, select, group, calculate, compare, plot, label, analyze, interpret.
+
+**Steps:**
+
+1. Load the original calcium.csv dataset.
+2. Identify the four measurement columns for each treatment group.
+3. Organize the data into tidy format.
+4. Remove missing measurements.
+5. Calculate average calcium levels for each group at each time point.
+6. Create a line graph comparing the groups.
+7. Use different colors for each treatment group.
+8. Add a title, labels, and a legend.
+9. Check that the groups and measurements are correct.
+10. Compare the changes in calcium levels over time.
+
+## Plan-Informed ChatGPT Results
+
+```{r}
+# Load the calcium dataset
+calcium <- read_csv("calcium.csv")
+
+# Give the columns useful names
+names(calcium) <- c(
+  "NoTreatment_Initial",
+  "NoTreatment_Year1",
+  "NoTreatment_Year2",
+  "NoTreatment_Year3",
+  "DietExercise_Initial",
+  "DietExercise_Year1",
+  "DietExercise_Year2",
+  "DietExercise_Year3"
+)
+
+# Add participant numbers
+calcium <- calcium %>%
+  mutate(Participant = row_number())
+
+# Convert the dataset to tidy format
+calcium_tidy <- calcium %>%
+  pivot_longer(
+    cols = -Participant,
+    names_to = c("Group", "Time"),
+    names_sep = "_",
+    values_to = "Calcium"
+  ) %>%
+  filter(!is.na(Calcium))
+
+# Calculate the average calcium levels
+calcium_summary <- calcium_tidy %>%
+  group_by(Group, Time) %>%
+  summarize(
+    Average = mean(Calcium),
+    .groups = "drop"
+  )
+
+# Put the time points in order
+calcium_summary$Time <- factor(
+  calcium_summary$Time,
+  levels = c("Initial", "Year1", "Year2", "Year3"),
+  labels = c("Initial", "Year 1", "Year 2", "Year 3")
+)
+
+# Give the treatment groups readable names
+calcium_summary$Group <- factor(
+  calcium_summary$Group,
+  levels = c("NoTreatment", "DietExercise"),
+  labels = c("No Treatment", "Diet and Exercise")
+)
+```
+
+```{r}
+#| label: fig-calcium-plan
+#| fig-cap: "Average Calcium Levels by Treatment Group"
+#| fig-alt: "Line graph comparing average calcium levels for no-treatment and diet-and-exercise groups over four measurement times."
+#| fig-width: 7
+#| fig-height: 5
+
+# Create the comparison graph
+ggplot(calcium_summary,
+       aes(x = Time, y = Average,
+           color = Group, group = Group)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  labs(
+    title = "Average Calcium Levels by Treatment Group",
+    x = "Measurement Time",
+    y = "Average Calcium Measurement",
+    color = "Treatment Group"
+  ) +
+  theme_minimal()
+```
+
+Figure @fig-calcium-plan shows the average calcium measurements for both groups over time. The no-treatment group started at approximately 72.38 and ended at 64.79. The diet and exercise group started at 69.29 and ended at 64.53.
+
+Both groups experienced decreases in calcium levels. However, the diet and exercise group had a smaller overall decrease. This suggests that the treatment may be associated with better calcium maintenance, although the graph alone cannot establish causation.
+
+## Generic ChatGPT Results
+
+![Generic ChatGPT graph showing the average values of all eight calcium columns.](chatgptPlot.png){#fig-calcium-generic width=85%}
+
+The generic ChatGPT prompt was:
+
+> Create a data visualization for these data. Calcium.csv
+
+The generic response created a graph displaying the average values of the eight columns in the dataset. Each point represented the average of one column.
+
+The graph showed that some averages were approximately 70–73, while others were closer to 65. ChatGPT also suggested other graph types, including boxplots and time-series plots.
+
+## Comparing the Two Results
+
+The generic graph in @fig-calcium-generic connects all eight column averages with one line. This makes it difficult to understand the difference between the two treatment groups.
+
+The plan-informed graph in @fig-calcium-plan uses two separate lines to compare the groups over time. This makes the results easier to interpret because each group can be followed from the initial measurement through Year 3.
+
+The biggest difference is that the plan-informed graph considers the meaning of the data. The generic graph simply displays column averages without clearly explaining the study.
+
+This comparison shows that detailed prompts can help AI produce more useful visualizations. Understanding the dataset before creating a graph is important because the way data are organized affects how the results are interpreted.
+
+# Reflection
+
+STAT 184 has helped me understand how data can be used to answer questions and communicate information. One important lesson has been that writing code is only part of data analysis. The data also need to be cleaned, organized, and explained correctly. The diamonds assignment helped me understand descriptive statistics and why cleaning data matters. Removing measurements of zero was important because those values could affect the results. I also learned how the mean, median, and standard deviation can be used to compare different groups. The basketball assignment showed me how visualizations can make relationships easier to understand. Comparing winning and losing teams through a boxplot helped show that winning teams generally shoot better from three-point range, although shooting percentage is not the only factor involved. Monte Carlo integration was more challenging because it involved generating random points and estimating an area. Comparing different sample sizes helped me understand why larger samples generally provide more stable estimates.I also learned how to use Quarto to combine code, graphs, tables, and writing into one document. This made me think more about reproducibility and how someone else could understand my analysis. Moving forward, I want to spend more time checking my results and making sure my graphs clearly communicate the main findings.
+
+
+
+# Appendix A: GenAI Usage
+
+## Tool Information
+
+**Tool:** OpenAI ChatGPT
+
+**Model:** GPT-6
+
+**Dates:** November 19-20, 2026
+
+ChatGPT was used to help with Quarto document organization, R code, explanations, and the calcium analysis.
+
+## Plan-Informed Calcium Prompt
+
+**Prompt:**
+
+> Using my uploaded calcium.csv file, follow this data analysis plan.
+>
+> Goal: Compare calcium levels over time between women who received no treatment and women who received diet and exercise treatment.
+>
+> Plan:
+>
+> 1. Load the original calcium.csv dataset without changing the file.
+> 2. Identify the four measurement columns for each treatment group.
+> 3. Convert the data into tidy format with participant, treatment group, year, and calcium level.
+> 4. Remove missing measurements.
+> 5. Calculate the average calcium level for each treatment group at each time point.
+> 6. Create a line graph using R and ggplot2 comparing the two groups over time.
+> 7. Use different colors for the treatment groups and clearly label the axes.
+> 8. Check that the measurements and treatment groups are correctly represented.
+> 9. Explain how calcium levels change over time and whether the treatment appears to make a difference.
+>
+> Use simple R code appropriate for STAT 184. Include the complete R code, a rendered graph, and a short explanation of the results.
+
+**Response:** ChatGPT produced R code, a line graph, and an analysis comparing both treatment groups. The no-treatment group declined from 72.38 to 64.79, and the diet/exercise group declined from 69.29 to 64.53.
+
+**Important:** Replace this summary with the complete exact response from the original ChatGPT conversation, including the generated code.
+
+## Generic ChatGPT Response
+
+**Tool:** OpenAI ChatGPT
+
+**Model:** GPT-5.3
+
+**Date:** March 31, 2026
+
+**Prompt:**
+
+> Create a data visualization for these data. Calcium.csv
+
+**Response:**
+
+> I created a visualization showing the average value of each column in your dataset.
+>
+> What this shows:
+>
+> - Each point represents the mean (average) of one column (y0, y1, y2, y3, etc.).
+> - You can quickly compare which variables tend to have higher or lower values overall.
+> - For example, some columns cluster around ~70–73, while others drop closer to ~65.
+>
+> If you want something more insightful, I can also create:
+>
+> - Boxplots (to show spread and outliers)
+> - Time series plots (if rows represent time/order)
+> - Correlation heatmaps
+> - Side-by-side comparisons (e.g., y0 vs y0.1)
+>
+> Just tell me 👍
+
+**Follow-up prompt:**
+
+> What is your version information?
+
+**Response:**
+
+> You're chatting with ChatGPT based on the GPT-5.3 architecture.
+>
+> Key details:
+>
+> - Model: GPT-5.3
+> - Knowledge cutoff: August 2025
+> - Current date (system): March 31, 2026
+
+## Other GenAI Assistance
+
+ChatGPT was also used to assist with document setup, Quarto formatting, code organization, and revisions.
+
+**Required before submission:** Include the exact prompts and complete responses for these interactions, including follow-up prompts. The rubric requires the full original text rather than a summary.
+
+### Prompt 1: Creating the Analysis Plan
+
+**User Prompt:**
+
+> Ok lets make a plan
+
+### Prompt 2: Plan-Informed Calcium Analysis
+
+**User Prompt:**
+
+> Using my uploaded calcium.csv file, follow this data analysis plan.
+>
+> **Goal:** Compare calcium levels over time between women who received no treatment and women who received diet and exercise treatment.
+>
+> **Plan:**
+>
+> 1. Load the original calcium.csv dataset without changing the file.
+> 2. Identify the four measurement columns for each treatment group.
+> 3. Convert the data into tidy format with participant, treatment group, year, and calcium level.
+> 4. Remove missing measurements.
+> 5. Calculate the average calcium level for each treatment group at each time point.
+> 6. Create a line graph using R and ggplot2 comparing the two groups over time.
+> 7. Use different colors for the treatment groups and clearly label the axes.
+> 8. Check that the measurements and treatment groups are correctly represented.
+> 9. Explain how calcium levels change over time and whether the treatment appears to make a difference.
+>
+> Use simple R code appropriate for STAT 184. Include the complete R code, a rendered graph, and a short explanation of the results.
+
+# Appendix B: Code
+
+```{r}
+#| echo: true
+#| eval: false
+
+# ===================================
+# Diamonds Table of Statistics
+# ===================================
+
+# Load packages and dataset
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+
+data(diamonds)
+
+# Remove diamonds with zero dimensions
+diamonds <- diamonds %>%
+  filter(x > 0, y > 0, z > 0)
+
+# Diamond Width Statistics
+width_results <- diamonds %>%
+  group_by(clarity) %>%
+  summarize(
+    Count = n(),
+    `0%` = min(y),
+    `20%` = quantile(y, 0.20),
+    `40%` = quantile(y, 0.40),
+    `60%` = quantile(y, 0.60),
+    `80%` = quantile(y, 0.80),
+    `100%` = max(y),
+    Median = median(y),
+    Mean = mean(y),
+    SD = sd(y)
+  )
+
+kable(width_results, digits = 2,
+      booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
+
+
+# Diamond Length Statistics
+length_results <- diamonds %>%
+  group_by(clarity) %>%
+  summarize(
+    Count = n(),
+    `0%` = min(x),
+    `20%` = quantile(x, 0.20),
+    `40%` = quantile(x, 0.40),
+    `60%` = quantile(x, 0.60),
+    `80%` = quantile(x, 0.80),
+    `100%` = max(x),
+    Median = median(x),
+    Mean = mean(x),
+    SD = sd(x)
+  )
+
+kable(length_results, digits = 2,
+      booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
+
+
+# Diamond Height Statistics
+height_results <- diamonds %>%
+  group_by(clarity) %>%
+  summarize(
+    Count = n(),
+    `0%` = min(z),
+    `20%` = quantile(z, 0.20),
+    `40%` = quantile(z, 0.40),
+    `60%` = quantile(z, 0.60),
+    `80%` = quantile(z, 0.80),
+    `100%` = max(z),
+    Median = median(z),
+    Mean = mean(z),
+    SD = sd(z)
+  )
+
+kable(height_results, digits = 2,
+      booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down")
+
+
+# ===================================
+# Big 10 Academic Alliance
+# ===================================
+
+# Load basketball dataset
+basketball <- read_csv("team_box.csv")
+
+# Keep 2026 season and required columns
+basketball <- basketball %>%
+  filter(season == 2026) %>%
+  select(game_id, team_display_name,
+         team_winner, three_point_field_goal_pct)
+
+# Remove missing values
+basketball <- basketball %>%
+  filter(!is.na(three_point_field_goal_pct))
+
+# Create game result variable
+basketball <- basketball %>%
+  mutate(
+    Result = ifelse(team_winner, "Win", "Loss")
+  )
+
+# Create basketball boxplot
+ggplot(basketball,
+       aes(x = Result,
+           y = three_point_field_goal_pct)) +
+  geom_boxplot(fill = "skyblue", color = "blue") +
+  labs(
+    title = "Three-Point Shooting in Women's College Basketball",
+    subtitle = "Winning vs. Losing Teams (2025–2026)",
+    x = "Game Result",
+    y = "Three-Point Shooting Percentage"
+  ) +
+  theme_minimal()
+
+
+# ===================================
+# Monte Carlo Numerical Integration
+# ===================================
+
+# Set seed for reproducible results
+set.seed(184)
+
+# Generate random coordinates
+generate_points <- function(n, xmin, xmax, ymin, ymax) {
+
+  x <- runif(n, xmin, xmax)
+  y <- runif(n, ymin, ymax)
+
+  return(data.frame(x, y))
+}
+
+# Create Monte Carlo simulation plot
+make_plot <- function(n) {
+
+  # Generate random points
+  points <- generate_points(n, -4, 4, 0, 0.4)
+
+  # Identify points above and below the curve
+  points$Position <- ifelse(
+    points$y <= dnorm(points$x),
+    "Below", "Above"
+  )
+
+  # Estimate the integral
+  estimate <- mean(
+    points$Position == "Below"
+  ) * 8 * 0.4
+
+  # Create the graph
+  ggplot(points,
+         aes(x = x, y = y, color = Position)) +
+    geom_point(size = 0.7, alpha = 0.5) +
+    stat_function(
+      fun = dnorm,
+      args = list(mean = 0, sd = 1),
+      xlim = c(-4, 4)
+    ) +
+    labs(
+      title = paste(
+        "n =", n,
+        "Estimate =", round(estimate, 4)
+      ),
+      x = "x",
+      y = "y"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+}
+
+# Generate four simulations
+make_plot(10)
+make_plot(100)
+make_plot(1000)
+make_plot(10000)
+
+
+# ===================================
+# Planning and Prompting GenAI
+# Calcium Data Analysis
+# ===================================
+
+# Load calcium dataset
+calcium <- read_csv("calcium.csv")
+
+# Rename the columns
+names(calcium) <- c(
+  "NoTreatment_Initial",
+  "NoTreatment_Year1",
+  "NoTreatment_Year2",
+  "NoTreatment_Year3",
+  "DietExercise_Initial",
+  "DietExercise_Year1",
+  "DietExercise_Year2",
+  "DietExercise_Year3"
+)
+
+# Add participant numbers
+calcium <- calcium %>%
+  mutate(Participant = row_number())
+
+# Convert the dataset to tidy format
+calcium_tidy <- calcium %>%
+  pivot_longer(
+    cols = -Participant,
+    names_to = c("Group", "Time"),
+    names_sep = "_",
+    values_to = "Calcium"
+  ) %>%
+  filter(!is.na(Calcium))
+
+# Calculate average calcium levels
+calcium_summary <- calcium_tidy %>%
+  group_by(Group, Time) %>%
+  summarize(
+    Average = mean(Calcium),
+    .groups = "drop"
+  )
+
+# Order the measurement times
+calcium_summary$Time <- factor(
+  calcium_summary$Time,
+  levels = c("Initial", "Year1", "Year2", "Year3"),
+  labels = c("Initial", "Year 1", "Year 2", "Year 3")
+)
+
+# Give treatment groups readable names
+calcium_summary$Group <- factor(
+  calcium_summary$Group,
+  levels = c("NoTreatment", "DietExercise"),
+  labels = c("No Treatment", "Diet and Exercise")
+)
+
+# Create calcium comparison graph
+ggplot(calcium_summary,
+       aes(x = Time, y = Average,
+           color = Group, group = Group)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  labs(
+    title = "Average Calcium Levels by Treatment Group",
+    x = "Measurement Time",
+    y = "Average Calcium Measurement",
+    color = "Treatment Group"
+  ) +
+  theme_minimal()
+```
+
